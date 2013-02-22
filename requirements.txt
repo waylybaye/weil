@@ -1,0 +1,1 @@
+git+git://github.com/django/django.git@1.5c2
