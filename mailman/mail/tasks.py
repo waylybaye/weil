@@ -21,7 +21,6 @@ def send_message(message_id):
     if message.html_content:
         msg.attach_alternative(message.html_content, "text/html")
 
-    #todo: use different backend for different mailbox according config
     mailbox = message.mailbox
 
     if mailbox.type == MailBoxType.SMTP:
@@ -36,7 +35,16 @@ def send_message(message_id):
         )
     elif mailbox.type == MailBoxType.SES:
         backend = "django_ses.SESBackend"
-        connection = get_connection(backend )
+        extra = {}
+        if mailbox.enable_dkim and mailbox.dkim_key:
+            extra['dkim_domain'] = str(mailbox.domain)
+            extra['dkim_key'] = str(mailbox.dkim_key.replace('\r', ''))
+
+        connection = get_connection(
+            backend,
+            aws_access_key=mailbox.aws_access_key,
+            aws_secret_key=mailbox.aws_access_secret_key, **extra)
+
     else:
         return
 
