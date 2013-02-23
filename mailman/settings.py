@@ -127,6 +127,8 @@ INSTALLED_APPS = (
 
     'south',
     'mailman.mail',
+
+    'djcelery',
 )
 
 # A sample logging configuration. The only tangible logging
@@ -156,6 +158,17 @@ LOGGING = {
             'propagate': True,
         },
     }
+}
+
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+BROKER_URL = "mongodb://localhost/mailman"
+CELERY_RESULT_BACKEND = "mongodb"
+CELERY_MONGODB_BACKEND_SETTINGS = {
+    'host': 'localhost',
+    # 'port': "",
+    'database': "mailman_result",
+    "taskmeta_collection": "taskmeta",
 }
 
 try:

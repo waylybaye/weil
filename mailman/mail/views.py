@@ -1,14 +1,18 @@
+from email.utils import parseaddr
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import render
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from mailman.mail.models import MailBox, Message
+from mailman.mail.models import MailBox, Message, Recipient
+from mailman.mail.tasks import send_message
 
 
 class HttpBadRequest(HttpResponse):
     status_code = 400
 
 
+@csrf_exempt
 @require_POST
 def send(request):
     token = request.POST.get('token')
@@ -29,12 +33,7 @@ def send(request):
     if not '@' in sender:
         return HttpBadRequest("Invalid sender address.")
 
-    if '<' in sender:
-        sender_name, sender_email = sender.split('<')[0].strip(), sender.split('<')[1].split('>')[0].strip()
-    else:
-        sender_name, sender_email = "", sender
-
-    print sender_name, sender_email
+    sender_name, sender_email = parseaddr(sender)
     domain = sender_email.split('@')[1]
 
     try:
@@ -42,15 +41,20 @@ def send(request):
         if not mailbox.token == token:
             return HttpBadRequest("Invalid token.")
 
-        Message.objects.create(
+        message = Message.objects.create(
             mailbox=mailbox,
             subject=subject,
             content=content,
             html_content=html_content,
-            sender_name=sender_name,
-            sender=sender_email,
+            sender=sender,
         )
 
+        for recipient in to:
+            name, addr = parseaddr(recipient)
+            instance, created = Recipient.objects.get_or_create(name=name, email=addr)
+            message.recipients.add(instance)
+
+        send_message.delay(message.id)
         return HttpResponse()
 
     except MailBox.DoesNotExist:

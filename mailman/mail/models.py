@@ -1,6 +1,7 @@
 from datetime import datetime
 from django.contrib.auth.models import User
 from django.db import models
+from email.utils import parseaddr, formataddr
 
 
 class MailBox(models.Model):
@@ -23,18 +24,14 @@ class Recipient(models.Model):
     name = models.CharField(max_length=100, null=True, blank=True)
 
     def __unicode__(self):
-        if self.name:
-            return "%s <%s>" % (self.name, self.email)
-        return self.email
+        return formataddr((self.name, self.email))
 
 
 class Message(models.Model):
     mailbox = models.ForeignKey(MailBox)
 
     subject = models.CharField(max_length=255)
-
-    sender_name = models.CharField(max_length=100, null=True, blank=True)
-    sender = models.EmailField()
+    sender = models.CharField(max_length=100)
 
     recipients = models.ManyToManyField(Recipient, related_name="received_messages")
     bcc = models.ManyToManyField(Recipient)
@@ -49,3 +46,7 @@ class Message(models.Model):
 
     def __unicode__(self):
         return self.subject
+
+    @property
+    def to(self):
+        return [str(recipient) for recipient in self.recipients.all()]

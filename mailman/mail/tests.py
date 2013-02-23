@@ -5,14 +5,21 @@ when you run "manage.py test".
 Replace this with more appropriate tests for your application.
 """
 from django.contrib.auth.models import User
+from django.core.management import call_command
 
 from django.test import TestCase
+from django.core import mail
 from mailman.mail.models import Message, MailBox
 
 
-class SimpleTest(TestCase):
+class MailTest(TestCase):
     def setUp(self):
         self.user = User.objects.create_user('test', 'test', 'test')
+        self.mailbox = MailBox.objects.create(
+            user=self.user,
+            domain="example.com",
+            token="token",
+        )
 
     def test_basic_addition(self):
         """
@@ -23,11 +30,6 @@ class SimpleTest(TestCase):
     def test_api(self):
         self.assertTrue(self.client.login(username='test', password='test'))
 
-        MailBox.objects.create(
-            user=self.user,
-            domain="example.com",
-            token="token",
-        )
 
         resp = self.client.post('/api/send', {
             'to': ['test@baye.me', 'test2@baye.me'],
@@ -42,3 +44,15 @@ class SimpleTest(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(Message.objects.count(), 1)
 
+    def test_sendmail(self):
+        self.assertEqual(len(mail.outbox), 0)
+
+        Message.objects.create(
+            mailbox=self.mailbox,
+            subject="Hello",
+            content="content",
+            html_content="<h1>content</h1>"
+        )
+        call_command("sendmail")
+        self.assertEqual(len(mail.outbox), 1)
+        email = mail.outbox[0]
