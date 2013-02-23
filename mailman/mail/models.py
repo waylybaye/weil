@@ -10,7 +10,7 @@ class MailBox(models.Model):
 
     # DKIM settings
     enable_dkim = models.BooleanField(default=False)
-    dkim_key = models.TextField(null=True)
+    dkim_key = models.TextField(null=True, blank=True)
 
     created_at = models.DateTimeField(default=datetime.now)
 
@@ -32,6 +32,8 @@ class Message(models.Model):
     mailbox = models.ForeignKey(MailBox)
 
     subject = models.CharField(max_length=255)
+
+    sender_name = models.CharField(max_length=100, null=True, blank=True)
     sender = models.EmailField()
 
     recipients = models.ManyToManyField(Recipient, related_name="received_messages")
