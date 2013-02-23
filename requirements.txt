@@ -1,1 +1,4 @@
 git+git://github.com/django/django.git@1.5c2
+celery==3.0.15
+celery-with-mongodb==3.0
+django-celery==3.0.11
