@@ -1,3 +1,4 @@
+from datetime import datetime
 from celery import task
 from django.core.mail import EmailMultiAlternatives, get_connection
 from mailman.mail.models import Message, MailBoxType
@@ -8,8 +9,6 @@ def send_message(message_id):
     message = Message.objects.get(id=message_id)
     if not message:
         return
-
-    print message.to
 
     msg = EmailMultiAlternatives(
         subject=message.subject,
@@ -48,10 +47,13 @@ def send_message(message_id):
     else:
         return
 
-    print "Backend: ", backend
     msg.connection = connection
 
     msg.send(fail_silently=False)
+
+    message.is_sent = True
+    message.sent_at = datetime.now()
+    message.save()
 
 
 @task()
