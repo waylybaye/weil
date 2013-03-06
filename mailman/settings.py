@@ -129,7 +129,7 @@ INSTALLED_APPS = (
     'mailman.mail',
 
     'djcelery',
-    'dj_mailman',
+    #'dj_mailman',
 )
 
 # A sample logging configuration. The only tangible logging
