@@ -11,7 +11,7 @@ MANAGERS = ADMINS
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3', # Add 'postgresql_psycopg2', 'mysql', 'sqlite3' or 'oracle'.
+        'ENGINE': 'django.db.backends.sqlite3',  # Add 'postgresql_psycopg2', 'mysql', 'sqlite3' or 'oracle'.
         'NAME': '',                      # Or path to database file if using sqlite3.
         'USER': '',
         'PASSWORD': '',
@@ -78,7 +78,7 @@ STATICFILES_DIRS = (
 STATICFILES_FINDERS = (
     'django.contrib.staticfiles.finders.FileSystemFinder',
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
-#    'django.contrib.staticfiles.finders.DefaultStorageFinder',
+    #    'django.contrib.staticfiles.finders.DefaultStorageFinder',
 )
 
 # Make this unique, and don't share it with anybody.
@@ -88,7 +88,7 @@ SECRET_KEY = '025-4x@g94o2jxiz-^%$e6#d5$$y8edh(9&%!x-p_1f0qy0d@r'
 TEMPLATE_LOADERS = (
     'django.template.loaders.filesystem.Loader',
     'django.template.loaders.app_directories.Loader',
-#     'django.template.loaders.eggs.Loader',
+    #     'django.template.loaders.eggs.Loader',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -129,6 +129,7 @@ INSTALLED_APPS = (
     'mailman.mail',
 
     'djcelery',
+    'dj_mailman',
 )
 
 # A sample logging configuration. The only tangible logging
@@ -160,7 +161,10 @@ LOGGING = {
     }
 }
 
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+# EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+EMAIL_BACKEND = "dj_mailman.backend.EmailBackend"
+MAILMAN_END_POINT = "http://localhost:8000/api/send"
+MAILMAN_ACCESS_TOKEN = "token"
 
 BROKER_URL = "mongodb://localhost/mailman"
 CELERY_RESULT_BACKEND = "mongodb"
@@ -174,4 +178,8 @@ CELERY_MONGODB_BACKEND_SETTINGS = {
 try:
     from local_settings import *
 except ImportError:
-    pass
+    try:
+        import dj_database_url
+        dj_database_url.config()
+    except ImportError:
+        pass

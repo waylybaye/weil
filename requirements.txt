@@ -7,3 +7,4 @@ dnspython==1.10.0
 pydkim==0.3
 git+git://github.com/waylybaye/django-ses.git
 South==0.7.6
+dj-database-url==0.2.1
