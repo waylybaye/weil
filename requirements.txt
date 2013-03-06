@@ -5,4 +5,4 @@ django-celery==3.0.11
 #django-ses==0.4.1
 dnspython==1.10.0
 pydkim==0.3
-git+git://github.com/waylybaye/django_ses.git
+git+git://github.com/waylybaye/django-ses.git
