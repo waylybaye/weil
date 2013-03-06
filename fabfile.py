@@ -22,6 +22,18 @@ def _error(msg):
     print red(msg)
 
 
+def _app_paths(name):
+    return "/home/%s/www/%s" % (_env.user, name), "/home/%s/env/%s" % (_env.user, name)
+
+
+def _find_main_dir():
+    folders = run('ls -F | grep /')
+    for folder in folders.split():
+        _path = os.path.join(folder, 'wsgi.py')
+        if files.exists(_path):
+            return folder.strip('/')
+
+
 def create_app(name=None, git=None):
     """
     Create an app in remote server
@@ -64,6 +76,8 @@ def create_app(name=None, git=None):
             _info("Installing gunicorn ... "),
             run('pip install gunicorn')
             _success("success")
+
+    start(name)
 
 
 def _is_package_installed(executable):
@@ -152,8 +166,12 @@ def config_supervisor(name):
     sudo('supervisorctl update')
 
 
-def start(name):
-    sudo("supervisorctl start %s" % name)
+def install_requirements(name):
+    project_root, env = _app_paths(name)
+    if files.exists(os.path.join(project_root, 'requirements.txt')):
+        with cd(project_root), prefix('source %s/bin/activate' % env):
+            _info("Installing requirements ... \n")
+            run('pip install -r requirements.txt')
 
 
 def delete_app(name=None):
@@ -169,16 +187,34 @@ def pull(name):
     """
     Pull the latest code from remote
     """
-    app_root = "~/www/%s" % name
-    env = "~/env/%s" % name
-
-    with cd(app_root):
+    project_root, env = _app_paths(name)
+    with cd(project_root):
         run('git pull')
-        with prefix('source %s/bin/activate' % env):
-            run('pip install -r requirements.txt')
-            run('python manage.py syncdb')
-            run('python manage.py migrate')
-            run('python manage.py collectstatic --noinput')
+        start(name)
+
+
+def start(name):
+    """
+    Start the wsgi process
+    """
+    project_root, env = _app_paths(name)
+
+    install_requirements(name)
+
+    with cd(project_root), prefix('source %s/bin/activate' % env):
+        run('python manage.py syncdb')
+        run('python manage.py migrate', quiet=True)
+        run('python manage.py collectstatic --noinput')
+
+    config_supervisor(name)
+
+
+def status(name=""):
+    """
+    check the process status
+    """
+    sudo('service nginx status')
+    sudo('supervisorctl status')
 
 
 def env(name, command=None, **kwargs):
