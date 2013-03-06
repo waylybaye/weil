@@ -1,7 +1,8 @@
-git+git://github.com/django/django.git@1.5c2
+Django
 celery==3.0.15
 celery-with-mongodb==3.0
 django-celery==3.0.11
-django-ses==0.4.1
+#django-ses==0.4.1
 dnspython==1.10.0
 pydkim==0.3
+git+git://github.com/waylybaye/django_ses.git
