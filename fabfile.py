@@ -52,6 +52,7 @@ def create_app(name=None, git=None):
 
     if not files.exists('~/run'):
         run('mkdir ~/run')
+        run('chown www-data:www-data ~/run')
 
     if not files.exists('~/env'):
         run('mkdir ~/env')
@@ -115,7 +116,21 @@ def install_essentials():
             print green('success')
 
 
-def config_supervisor(name):
+def _download_remote_supervisor_conf(remote_path, local_path="", hide_message=False):
+    if not local_path:
+        local_path = tempfile.mktemp('.conf')
+
+    if files.exists(remote_path, use_sudo=True):
+        if not hide_message:
+            _info("Found existed supervisor conf file, downloading ... ")
+        with hide('running', 'stdout'):
+            get(remote_path, local_path)
+        if not hide_message:
+            _success()
+        return local_path
+
+
+def config_supervisor(name, **kwargs):
     """
     add supervisor configuration
     """
@@ -124,11 +139,7 @@ def config_supervisor(name):
     conf_path = '/etc/supervisor/conf.d/%s.conf' % name
     project_root = '~/www/%s' % name
 
-    if files.exists(conf_path, use_sudo=True):
-        _info("Found existed supervisor conf file, downloading ... ")
-        with hide('running', 'stdout'):
-            get(conf_path, temp_path)
-        _success()
+    if _download_remote_supervisor_conf(conf_path, temp_path):
         parser.read(temp_path)
 
     section = 'program:%s' % name
@@ -141,13 +152,14 @@ def config_supervisor(name):
         for folder in folders.split():
             _path = os.path.join(folder, 'wsgi.py')
             if files.exists(_path):
-                wsgi_path = _path.replace('/', '.')
+                wsgi_path = _path.replace('/', '.').strip('.py')
                 _info("Found wsgi module: %s \n" % wsgi_path)
                 break
         else:
             raise Exception("Can't find wsgi.py when config supervisor and gunicorn")
 
-    command = "/home/%s/env/%s/bin/gunicorn %s:application" % (_env.user, name, wsgi_path)
+    command = "/home/%(user)s/env/%(name)s/bin/gunicorn -b unix:/home/%(user)s/run/%(name)s.sock %(wsgi)s:application"\
+              % {'user': _env.user, 'name': name, 'wsgi': wsgi_path}
 
     parser.set(section, 'command', command)
     parser.set(section, 'directory', "/home/%s/www/%s" % (_env.user, name))
@@ -157,6 +169,7 @@ def config_supervisor(name):
     parser.set(section, 'autostart', 'true')
     parser.set(section, 'autorestart', 'true')
     parser.set(section, 'redirect_stderr', 'true')
+
     parser.write(open(temp_path, 'w+'))
 
     _info("Write supervisor config ... \n"),
@@ -226,20 +239,40 @@ def env(name, command=None, **kwargs):
     fab env:list
     fab env:DATABASE_URL="" add or change env
     """
+    remote_path = '/etc/supervisor/conf.d/%s.conf' % name
+    local_path = _download_remote_supervisor_conf(remote_path)
+    env = {}
+    section = 'program:%s' % name
+    if local_path:
+        parser = ConfigParser()
+        parser.read(local_path)
+        if parser.has_option(section, 'environment'):
+            environ = parser.get(section, 'environment')
+            for entry in environ.split(','):
+                key, val = entry.split('=')
+                env[key] = val
+    else:
+        raise Exception("Please run config_supervisor first.")
+
+    if command == 'list':
+        if not env:
+            print red("There is no environment vars now.")
+
+        for key, val in env.items():
+            print key, val
+
+    else:
+        for key, val in kwargs.items():
+            env[key] = val
+
+        parser.set(section, 'environment', ','.join(["%s='%s'" % (k, v) for k, v in env.items()]))
+        parser.write(open(local_path, 'w'))
+        put(local_path, remote_path, use_sudo=True)
+        sudo('supervisorctl update')
 
 
 def hello():
-    with hide('running', 'stdout'):
-        folders = run('ls -F | grep /')
-        print folders, folders.split()
-        for folder in folders.split():
-            if files.exists(os.path.join(folder, 'wsgi.py')):
-                print green(os.path.join(folder, 'wsgi.py'))
-                break
-
-    with hide('stdout'):
-        result = run('ls')
-        print type(result), result, result.endswith('www')
+    run("echo Hello")
 
 
 def remote_env(config_file, command=None, **kwargs):
