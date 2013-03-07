@@ -116,7 +116,7 @@ def install_essentials():
             print green('success')
 
 
-def _download_remote_supervisor_conf(remote_path, local_path="", hide_message=False):
+def _download_remote_file(remote_path, local_path="", hide_message=False):
     if not local_path:
         local_path = tempfile.mktemp('.conf')
 
@@ -139,7 +139,7 @@ def config_supervisor(name, **kwargs):
     conf_path = '/etc/supervisor/conf.d/%s.conf' % name
     project_root = '~/www/%s' % name
 
-    if _download_remote_supervisor_conf(conf_path, temp_path):
+    if _download_remote_file(conf_path, temp_path):
         parser.read(temp_path)
 
     section = 'program:%s' % name
@@ -179,6 +179,61 @@ def config_supervisor(name, **kwargs):
     sudo('supervisorctl update')
 
 
+def config_nginx(name, host):
+    """Config nginx to route requests to wsgi process"""
+    template = """
+upstream %(app)s_server {
+    server unix:/home/%(user)s/run/%(app)s.sock fail_timeout=0;
+}
+
+server {
+    listen 80 default;
+    client_max_body_size 4G;
+    server_name %(host)s;
+
+    keepalive_timeout 5;
+
+    # path for static files
+    # root /path/to/app/current/public;
+
+    location / {
+        # checks for static file, if not found proxy to app
+        try_files $uri @proxy_to_app;
+    }
+
+    location @proxy_to_app {
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Host $http_host;
+        proxy_redirect off;
+
+        proxy_pass   http://%(app)s_server;
+    }
+
+    access_log /var/log/nginx/%(app)s.access.log;
+    error_log /var/log/nginx/%(app)s.error.log;
+}
+    """
+    config = template % {
+        'user': _env.user,
+        'app': name,
+        'host': host,
+    }
+    local_path = tempfile.mktemp('.conf')
+    with open(local_path, 'w+') as output:
+        output.write(config)
+
+    remote_path = "/etc/nginx/sites-available/%s.conf" % name
+    link_path = "/etc/nginx/sites-enabled/%s.conf" % name
+    _info("Creating nginx config file under sites-available ... \n")
+    put(local_path, remote_path, use_sudo=True)
+    _info('Linking nginx config file to sites-enabled ... \n')
+    if files.exists(link_path):
+        sudo('rm %s' % link_path)
+    sudo('ln -s %s %s' % (remote_path, link_path))
+    _info("Restarting nginx ... \n")
+    sudo('service nginx reload')
+
+
 def install_requirements(name):
     project_root, env = _app_paths(name)
     if files.exists(os.path.join(project_root, 'requirements.txt')):
@@ -196,7 +251,7 @@ def delete_app(name=None):
     run("rm -rf ~/env/%s" % name)
 
 
-def pull(name):
+def deploy(name):
     """
     Pull the latest code from remote
     """
@@ -240,7 +295,7 @@ def env(name, command=None, **kwargs):
     fab env:DATABASE_URL="" add or change env
     """
     remote_path = '/etc/supervisor/conf.d/%s.conf' % name
-    local_path = _download_remote_supervisor_conf(remote_path)
+    local_path = _download_remote_file(remote_path)
     env = {}
     section = 'program:%s' % name
     if local_path:
@@ -274,11 +329,4 @@ def env(name, command=None, **kwargs):
 def hello():
     run("echo Hello")
 
-
-def remote_env(config_file, command=None, **kwargs):
-    """
-    NOTE: This command is run on remote server, don't call directly
-    """
-    if command == 'list':
-        pass
 
