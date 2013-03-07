@@ -5,6 +5,7 @@ from fabric.api import run, local, sudo, get, put, env as _env
 from fabric.colors import green, blue, red
 from fabric.contrib import files
 from fabric.context_managers import cd, prefix, hide, lcd
+from fabric.contrib.console import confirm
 from fabric.utils import fastprint
 
 
@@ -34,6 +35,16 @@ def _find_main_dir():
             return folder.strip('/')
 
 
+def _mkdir(folders):
+    """mkdir if not exists"""
+    if not type(folders) in [list, tuple]:
+        folders = [folders]
+
+    for folder in folders:
+        if not files.exists(folder):
+            run('mkdir %s' % folder)
+
+
 def create_app(name=None, git=None):
     """
     Create an app in remote server
@@ -44,40 +55,36 @@ def create_app(name=None, git=None):
     """
 
     install_essentials()
-
+    _info("--------- Initialize App ----------")
+    _info("creating folders ... ")
     # create ~/www directory if not existing
     project_root = '~/www/%s' % name
     if files.exists(project_root):
         raise Exception("the app is already existed.")
 
-    if not files.exists('~/run'):
-        run('mkdir ~/run')
-        run('chown www-data:www-data ~/run')
+    # create base dirs
+    _mkdir(['~/run', '~/env', '~/wwww', '~/log'])
 
-    if not files.exists('~/env'):
-        run('mkdir ~/env')
-
-    if not files.exists('~/log'):
-        run('mkdir ~/log')
-
-    # Find git origin url
+    # change the owner so the gunicorn worker could access it
+    run('chown www-data:www-data ~/run')
 
     with hide('running', 'stdout'):
         with cd("~/www"):
-            _info("Clone git repo ...  "),
+            _info("clone git repo ...  "),
             run('git clone %s %s' % (git, name))
             _success("success")
 
         with cd("~/env"):
-            _info("Create virutalenv ... "),
+            _info("create virutalenv ... "),
             run("virtualenv %s" % name)
             _success("success")
 
         with prefix('source ~/env/%s/bin/activate' % name):
-            _info("Installing gunicorn ... "),
+            _info("installing gunicorn ... "),
             run('pip install gunicorn')
             _success("success")
 
+    config_supervisor(name)
     start(name)
 
 
@@ -134,6 +141,8 @@ def config_supervisor(name, **kwargs):
     """
     add supervisor configuration
     """
+    _info("Configuring supervisor ... \n")
+
     temp_path = tempfile.mktemp('.conf')
     parser = ConfigParser()
     conf_path = '/etc/supervisor/conf.d/%s.conf' % name
@@ -163,7 +172,6 @@ def config_supervisor(name, **kwargs):
 
     parser.set(section, 'command', command)
     parser.set(section, 'directory', "/home/%s/www/%s" % (_env.user, name))
-    parser.set(section, 'process_name', "%s-wsgi" % name)
     parser.set(section, 'stdout_logfile', "/home/%s/log/%s.log" % (_env.user, name))
     parser.set(section, 'user', 'www-data')
     parser.set(section, 'autostart', 'true')
@@ -247,8 +255,9 @@ def delete_app(name=None):
     if not files.exists(project_root):
         raise Exception("the app is not existing.")
 
-    run("rm -rf %s" % project_root)
-    run("rm -rf ~/env/%s" % name)
+    if confirm('Are you sure to delete this app( all files will be deleted )?', default=False):
+        run("rm -rf %s" % project_root)
+        run("rm -rf ~/env/%s" % name)
 
 
 def deploy(name):
@@ -258,7 +267,26 @@ def deploy(name):
     project_root, env = _app_paths(name)
     with cd(project_root):
         run('git pull')
+
+    with cd(project_root), prefix('source %s/bin/activate' % env), hide('running'):
+        # initialize the database
+        _info("./manage.py syncdb ... \n")
+        run('python manage.py syncdb')
+
+        # run south migrations
+        _info("./manage.py migrate ... \n")
+        run('python manage.py migrate', quiet=True)
+
+        # collect static files
+        _info("./manage.py collectstatic --noinput ... \n")
+        run('python manage.py collectstatic --noinput')
         start(name)
+
+
+def _supervisor_status(program):
+    with hide('running', 'stdout'):
+        text = sudo('supervisorctl status %s' % program)
+        return text.split()[1]
 
 
 def start(name):
@@ -266,23 +294,47 @@ def start(name):
     Start the wsgi process
     """
     project_root, env = _app_paths(name)
+    if _supervisor_status(name).lower() == 'running':
+        _error("The app wsgi process is already started.")
+        return
 
-    install_requirements(name)
+    _info("Starting the app wsgi process ... \n")
+    sudo('supervisorctl start %s' % name)
 
-    with cd(project_root), prefix('source %s/bin/activate' % env):
-        run('python manage.py syncdb')
-        run('python manage.py migrate', quiet=True)
-        run('python manage.py collectstatic --noinput')
+    # check if the wsgi process started
+    if _supervisor_status(name).lower() == 'running':
+        _success()
 
-    config_supervisor(name)
+
+def stop(name):
+    """Stop the wsgi process"""
+    if _supervisor_status(name).lower() != 'running':
+        _error("The app wsgi process is not running.")
+        return
+
+    _info("Stop the app wsgi process ... \n")
+    sudo('supervisorctl stop %s' % name)
+
+    if _supervisor_status(name).lower() == 'stopped':
+        _success()
 
 
 def status(name=""):
     """
     check the process status
     """
-    sudo('service nginx status')
-    sudo('supervisorctl status')
+    _info("Checking service status ... \n")
+    with hide('running', 'stdout'):
+        print blue('nginx    :'), sudo('service nginx status')
+
+        text = sudo('supervisorctl status %s' % name)
+        gunicorn_status = text.split()[1]
+        extra_msg = ""
+
+        if gunicorn_status.lower() == 'running':
+            extra_msg = " ".join(text.split()[2:])
+
+        print blue('gunicorn :'), gunicorn_status, extra_msg
 
 
 def env(name, command=None, **kwargs):
@@ -322,8 +374,12 @@ def env(name, command=None, **kwargs):
 
         parser.set(section, 'environment', ','.join(["%s='%s'" % (k, v) for k, v in env.items()]))
         parser.write(open(local_path, 'w'))
+        _info("Updating environment ... \n")
         put(local_path, remote_path, use_sudo=True)
+
+        _info("Reload supervisor ... \n")
         sudo('supervisorctl update')
+        _success()
 
 
 def hello():
