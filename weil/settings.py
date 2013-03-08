@@ -163,8 +163,8 @@ LOGGING = {
 
 # EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 EMAIL_BACKEND = "dj_mailman.backend.EmailBackend"
-MAILMAN_END_POINT = "http://localhost:8000/api/send"
-MAILMAN_ACCESS_TOKEN = "token"
+WEIL_END_POINT = "http://localhost:8000/api/send"
+WEIL_ACCESS_TOKEN = "token"
 
 BROKER_URL = "mongodb://localhost/mailman"
 CELERY_RESULT_BACKEND = "mongodb"

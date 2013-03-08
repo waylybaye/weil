@@ -9,7 +9,7 @@ from django.core.management import call_command
 
 from django.test import TestCase
 from django.core import mail
-from mailman.mail.models import Message, MailBox
+from weil.mail.models import Message, MailBox
 
 
 class MailTest(TestCase):

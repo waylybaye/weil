@@ -1,7 +1,7 @@
 from datetime import datetime
 from celery import task
 from django.core.mail import EmailMultiAlternatives, get_connection
-from mailman.mail.models import Message, MailBoxType
+from weil.mail.models import Message, MailBoxType
 
 
 @task()
