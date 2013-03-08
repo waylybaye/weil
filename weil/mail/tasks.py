@@ -12,7 +12,7 @@ def send_message(message_id):
 
     msg = EmailMultiAlternatives(
         subject=message.subject,
-        body="content",
+        body=message.content,
         from_email=message.sender,
         to=message.to,
     )

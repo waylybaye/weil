@@ -6,13 +6,13 @@ admin.autodiscover()
 
 urlpatterns = patterns('',
     # Examples:
-    # url(r'^$', 'mailman.views.home', name='home'),
-    # url(r'^mailman/', include('mailman.foo.urls')),
+    # url(r'^$', 'weil.views.home', name='home'),
+    # url(r'^weil/', include('weil.foo.urls')),
 
     # Uncomment the admin/doc line below to enable admin documentation:
     # url(r'^admin/doc/', include('django.contrib.admindocs.urls')),
 
     # Uncomment the next line to enable the admin:
     url(r'^admin/', include(admin.site.urls)),
-    url('^', include('mailman.mail.urls', namespace='mail'))
+    url('^', include('weil.mail.urls', namespace='mail'))
 )

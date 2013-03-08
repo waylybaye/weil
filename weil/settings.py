@@ -101,10 +101,10 @@ MIDDLEWARE_CLASSES = (
     # 'django.middleware.clickjacking.XFrameOptionsMiddleware',
 )
 
-ROOT_URLCONF = 'mailman.urls'
+ROOT_URLCONF = 'weil.urls'
 
 # Python dotted path to the WSGI application used by Django's runserver.
-WSGI_APPLICATION = 'mailman.wsgi.application'
+WSGI_APPLICATION = 'weil.wsgi.application'
 
 TEMPLATE_DIRS = (
     # Put strings here, like "/home/html/django_templates" or "C:/www/django/templates".
@@ -126,7 +126,7 @@ INSTALLED_APPS = (
     'django.contrib.admindocs',
 
     'south',
-    'mailman.mail',
+    'weil.mail',
 
     'djcelery',
     #'dj_mailman',

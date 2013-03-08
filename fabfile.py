@@ -53,26 +53,26 @@ def create_app(name=None, git=None):
         ~/env/app
         ~/run/app.sock
     """
+    _info("--------- Initialize App ----------\n")
 
     install_essentials()
-    _info("--------- Initialize App ----------")
-    _info("creating folders ... ")
+
+    _info("creating folders ... \n")
     # create ~/www directory if not existing
     project_root = '~/www/%s' % name
     if files.exists(project_root):
         raise Exception("the app is already existed.")
 
     # create base dirs
-    _mkdir(['~/run', '~/env', '~/wwww', '~/log'])
+    _mkdir(['~/run', '~/env', '~/www', '~/log'])
 
     # change the owner so the gunicorn worker could access it
-    run('chown www-data:www-data ~/run')
+    sudo('chown www-data:www-data ~/run')
 
     with hide('running', 'stdout'):
         with cd("~/www"):
-            _info("clone git repo ...  "),
+            _info("clone git repo ...  \n"),
             run('git clone %s %s' % (git, name))
-            _success("success")
 
         with cd("~/env"):
             _info("create virutalenv ... "),
@@ -98,6 +98,8 @@ def install_essentials():
     Install essential software:
     supervisor, python-setuptools
     """
+    _info("Installing essential packages ... \n")
+
     if not _is_package_installed("easy_install"):
         with hide('running', 'stdout'):
             print blue("Installing python-setuptools ... "),
@@ -335,6 +337,14 @@ def status(name=""):
             extra_msg = " ".join(text.split()[2:])
 
         print blue('gunicorn :'), gunicorn_status, extra_msg
+
+
+def log(name):
+    """show the app wsgi process log"""
+    _info("Getting log for %s\n" % name)
+    with hide('running', 'stdout'):
+        msg = sudo('supervisorctl tail %s' % name)
+        print msg
 
 
 def env(name, command=None, **kwargs):

@@ -1,7 +1,7 @@
+# coding: utf-8
 from email.utils import parseaddr
-from django.contrib.auth.decorators import login_required
+from django.core.mail import send_mail
 from django.http import HttpResponse
-from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from mailman.mail.models import MailBox, Message, Recipient
@@ -61,7 +61,6 @@ def send(request):
         return HttpBadRequest("Unverified sender address.")
 
 
-@login_required
-def mailbox(request):
-    mailboxes = MailBox.objects.filter(user=request.user)
-    return render(request, 'mailbox/mailboxes.html', {'mailboxes': mailboxes})
+def test(request):
+    send_mail(u"测试SES", u"测试中文邮件", '尺乎 <no-reply@chehu.net>', ['Baye <havelove@gmail.com>'])
+    return HttpResponse("OK")

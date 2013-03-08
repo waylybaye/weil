@@ -15,10 +15,11 @@ from mailman.mail.models import Message, MailBox
 class MailTest(TestCase):
     def setUp(self):
         self.user = User.objects.create_user('test', 'test', 'test')
+        self.token = 'token'
         self.mailbox = MailBox.objects.create(
             user=self.user,
             domain="example.com",
-            token="token",
+            token=self.token,
         )
 
     def test_basic_addition(self):
@@ -28,21 +29,23 @@ class MailTest(TestCase):
         self.assertEqual(1 + 1, 2)
 
     def test_api(self):
-        self.assertTrue(self.client.login(username='test', password='test'))
-
-
         resp = self.client.post('/api/send', {
-            'to': ['test@baye.me', 'test2@baye.me'],
+            'to': ['Hello World <test@wayly.net>', 'test2@wayly.net'],
             'subject': "Welcome",
             'content': "This is content",
             'html_content': "<h1>Hello</h1>",
-            'token': 'token',
+            'token': self.token,
             'sender': 'Example<no-reply@example.com>',
         })
 
-        print resp.content
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(Message.objects.count(), 1)
+
+        message = Message.objects.all()[0]
+        self.assertEqual(message.subject, 'Welcome')
+        self.assertEqual(message.content, "This is content")
+        self.assertEqual(message.html_content, "<h1>Hello</h1>")
+
 
     def test_sendmail(self):
         self.assertEqual(len(mail.outbox), 0)
