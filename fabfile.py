@@ -258,8 +258,21 @@ def delete_app(name=None):
         raise Exception("the app is not existing.")
 
     if confirm('Are you sure to delete this app( all files will be deleted )?', default=False):
+        _info("Delete source files and virtual env ... \n")
         run("rm -rf %s" % project_root)
         run("rm -rf ~/env/%s" % name)
+
+        supervisor_config = '/etc/supervisor/conf.d/%s.conf' % name
+        if files.exists(supervisor_config):
+            _info("Delete supervisor config file ... \n")
+            sudo('rm %s' % supervisor_config)
+            sudo('supervisorctl update')
+
+        nginx_config = '/etc/nginx/sites-available/%s.conf' % name
+        if files.exists(nginx_config):
+            _info("Delete nginx config file ... \n")
+            sudo('rm %s' % nginx_config)
+            sudo('service nginx reload')
 
 
 def deploy(name):
