@@ -44,12 +44,26 @@ def remove():
     )
 
 
+def env(command="", **kwargs):
+    wayly_fabric.supervisor.env('weil', command, **kwargs)
+
+
+
 def start():
-    wayly_fabric.start('weil')
+    wayly_fabric.supervisor.start('weil')
+
+
+def stop():
+    wayly_fabric.supervisor.stop('weil')
+
+
+def restart():
+    wayly_fabric.supervisor.restart('weil')
 
 
 def deploy():
     wayly_fabric.deploy('weil')
+
 
 def log():
     wayly_fabric.supervisor.log('weil')
