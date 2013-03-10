@@ -176,12 +176,14 @@ CELERY_MONGODB_BACKEND_SETTINGS = {
 }
 
 try:
+    import dj_database_url
+    DATABASES = {
+        'default': dj_database_url.config()
+    }
+except ImportError:
+    pass
+
+try:
     from local_settings import *
 except ImportError:
-    try:
-        import dj_database_url
-        DATABASES = {
-            'default': dj_database_url.config()
-        }
-    except ImportError:
-        pass
+    pass
