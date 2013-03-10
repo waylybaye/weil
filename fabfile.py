@@ -1,6 +1,6 @@
 from ConfigParser import ConfigParser
 import os
-from fabric.api import env
+from fabric.state import env as _env
 import wayly_fabric
 
 
@@ -14,19 +14,15 @@ def initialize():
         name='weil',
         command='gunicorn -b 127.0.0.1:8020 weil.wsgi:application',
         # command="echo $PATH",
-        directory="/home/%s/www/weil" % env.user,
-        virtualenv="/home/%s/.virtualenvs/weil" % env.user,
+        directory="/home/%s/www/weil" % _env.user,
+        virtualenv="/home/%s/.virtualenvs/weil" % _env.user,
     )
 
     wayly_fabric.nginx.config(
         name="weil",
         host='weil.wayly.net',
         proxy='http://127.0.0.1:8020',
-    )
-
-    wayly_fabric.supervisor.env(
-        name='weil',
-        DATABASE_URL="sqlite3://dev.db"
+        static_dir='/home/%s/www/weil/static' % _env.user,
     )
 
 
